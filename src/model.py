@@ -43,8 +43,8 @@ class SpikingNeuronLayer(nn.Module):
         self.reset_state()
         self.to(self.device)
 
-    def init_parameters():
-        for param in self.parameters:
+    def init_parameters(self):
+        for param in self.parameters():
             if param.dim() >= 2:
                 nn.init.xavier_uniform_(param)
     
@@ -104,7 +104,11 @@ class InputDataToSpikingLayer(nn.Module):
         super(InputDataToSpikingLayer, self).__init__()
         self.device = device
         
+        self.reset_state()
         self.to(self.device)
+    
+    def reset_state(self):
+        pass
     
     def forward(self, x, is_2D = True):
         # Flattening 2d image to 1d for fc layer
@@ -137,7 +141,7 @@ class SpikingNet(nn.Module):
     def __init__(self, device, n_time_steps, begin_eval):
         super(SpikingNet, self).__init__()
         assert (0 <= begin_eval and begin_eval < n_time_steps)
-        self.device = self.device
+        self.device = device
         self.n_time_steps = n_time_steps
         self.begin_eval = begin_eval
 
@@ -154,16 +158,15 @@ class SpikingNet(nn.Module):
                 )
         self.output_conversion = OutputDataToSpikingLayer(average_output = False) # sum on outputs
 
-        self.to(self.device)
+        # self.to(self.device)
 
-        def forward_through_time(self, x) :
+    def forward_through_time(self, x) :
         
         """ This acts as a layer. input and output is non-time related, All time iterations
         happen inside and returned layer is thus passed through global average pooling on 
         time axis before the return such as to be able to mix this pipeline with regular backprop
         layers such as the input data and the output data.
         """
-
         self.input_conversion.reset_state()
         self.layer1.reset_state()
         self.layer2.reset_state()
@@ -181,7 +184,7 @@ class SpikingNet(nn.Module):
             # For layer1 we take regular output
             layer1_state,layer1_output = self.layer1(xi)
             
-            layer2_state, layer2_output = self.layer2(self.layer1_output)
+            layer2_state, layer2_output = self.layer2(layer1_output)
 
             all_layer1_states.append(layer1_state)
             all_layer1_outputs.append(layer1_output)
@@ -236,7 +239,7 @@ class SpikingNet(nn.Module):
         plt.figure(figsize = (width,height))
         plt.imshow(
                 layer_values,
-                interpolation = "nearest"
+                interpolation = "nearest",
                 cmap = plt.cm.rainbow
                 )
         plt.title(title)
@@ -259,21 +262,21 @@ class SpikingNet(nn.Module):
 
 
 
-
-
 ## A  Non - Spiking Neural Network for comparison purposes
+class NonSpikingNet(nn.Module):
 
-
-class NonSpikingNet(nn.Moduel):
-
-    def __init(self):
+    def __init__(self) : 
         super(NonSpikingNet,self).__init__()
-        self.layer1 = nn.Linear(28*28,100)
-        self.layer2 = nn.Linear(100,10)
+        self.flatten = nn.Flatten()
+        self.linear_relu_stack = nn.Sequential(
+                nn.Linear(28*28,100),
+                nn.ReLU(),
+                nn.Linear(100,10),
+        )
 
-    def forward(self, x, is_2D = True):
-        x = x.view(x.shape[0],-1)
-        x = F.relu(self.layer1(x))
-        x = self.layer2(x)
-        return F.log_softmax(x, dim = -1)
+    def forward(self,x) : 
+        x = self.flatten(x)
+        logits = self.linear_relu_stack(x)
+        return F.log_softmax(logits,dim = -1)
+
 

@@ -8,9 +8,7 @@ import torchvision.transforms as transforms
 def download_mnist(data_path) : 
     if not os.path.exists(data_path):
         os.mkdir(data_path)
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,),(1,0))])
-    train_set = torchvision.datasets.MNIST(data_path, train=True,transform = transforms, download = True)
-    test_set = torchvision.datasets.MNIST(data_path, train=False,transform = transforms, download = True)
-    return train_set,test_set
-
-
+    transformation = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (1.0,))])
+    training_set = torchvision.datasets.MNIST(data_path, train=True, transform=transformation, download=True)
+    testing_set = torchvision.datasets.MNIST(data_path, train=False, transform=transformation, download=True)
+    return training_set, testing_set
