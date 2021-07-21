@@ -188,7 +188,7 @@ class SpikingNet(nn.Module):
 
             all_layer1_states.append(layer1_state)
             all_layer1_outputs.append(layer1_output)
-            all_layer1_states.append(layer2_state)
+            all_layer2_states.append(layer2_state)
             all_layer2_outputs.append(layer2_output)
 
             # we take inner state of layer2 because it's pre-activation and thus acts as out logits
@@ -229,7 +229,7 @@ class SpikingNet(nn.Module):
         layer_output = torch.stack(all_layer_outputs).data.cpu().numpy().squeeze().transpose()
 
         # Plot 'em
-        self.plot_neuron(layer_state[neuron_idx], titile = "Inner state values of neuron {} of layer {}".format(neuron_idx,layer_idx))
+        self.plot_neuron(layer_state[neuron_idx], title = "Inner state values of neuron {} of layer {}".format(neuron_idx,layer_idx))
         self.plot_neuron(layer_output[neuron_idx], title="Output spikes (activation) values of neuron {} of layer {}".format(neuron_idx, layer_idx))
 
     def plot_layer(self, layer_values, title) : 
@@ -250,12 +250,12 @@ class SpikingNet(nn.Module):
 
     def plot_neuron(self,neuron_through_time,title):
 
-        width = max(16, neuron_through_time.shape/8)
+        width = max(16, len(neuron_through_time)/8)
         height = 4
         plt.figure(figsize = (width,height))
 
         plt.title(title)
-        plt.plto(neuron_through_time)
+        plt.plot(neuron_through_time)
         plt.xlabel("Time")
         plt.ylabel("Neurons's activation")
         plt.show()

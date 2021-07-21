@@ -100,7 +100,7 @@ train_many_epochs(non_spiking_model)
 
 
 # Visualzing
-data,target = test_set_loader.__iter__().__next()
+data,target = test_set_loader.__iter__().__next__()
 
 # taking 1st testing example
 x = torch.stack([data[0]])
