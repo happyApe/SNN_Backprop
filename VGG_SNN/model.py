@@ -1,6 +1,7 @@
             ## VGG spiking variant model
 # referenced paper -> https://openreview.net/forum?id=B1xSperKvH
 import os
+import pdb
 import sys
 import copy
 import math
@@ -59,7 +60,7 @@ class LinearSpike(torch.autograd.Function):
     @staticmethod
     def backward(ctx,grad_output):
 
-        input = ctx.saved_tensors
+        input, = ctx.saved_tensors
         grad_input = grad_output.clone()
         grad = LinearSpike.gamma*F.threshold(1.0 - torch.abs(input), 0, 0)
         return grad*grad_input, None
@@ -258,6 +259,11 @@ class VGG_SNN(nn.Module):
         self.width = x.size(2) 
         self.height = x.size(3)
 
+        self.mem = {}
+        self.mask = {}
+        self.spike = {}
+
+
         # Membrane potential, dropout mask and width,height init of the model's features
         for l in range(len(self.features)):
             if isinstance(self.features[l], nn.Conv2d):
@@ -272,8 +278,9 @@ class VGG_SNN(nn.Module):
 
         prev = len(self.features)
 
+        # pdb.set_trace()
         # Membrane potential, dropout mask init of the model's classifier part
-        for l in range(len(self.classifier)-1):
+        for l in range(len(self.classifier)):
             if isinstance(self.classifier[l],nn.Linear):
                 self.mem[prev + l] = torch.zeros(self.batch_size, self.classifier[l].out_features)
 
@@ -304,7 +311,7 @@ class VGG_SNN(nn.Module):
                            max_mem = (self.features(out_prev)).max()
                        break
                     
-                   mem_thr = (self.mem[l]/threshold[l]) - 1.0
+                   mem_thr = (self.mem[l]/self.threshold[l]) - 1.0
                    out = self.act_func(mem_thr,(t-1-self.spike[l])) # the memory threshold and the last spike
                    rst = self.threshold[l]*(mem_thr>0).float()
                    
@@ -315,7 +322,7 @@ class VGG_SNN(nn.Module):
                 elif isinstance(self.features[l],nn.AvgPool2d):
                    out_prev = self.features[l](out_prev)
 
-                elif isinstance(self.features[k],nn.Dropout):
+                elif isinstance(self.features[l],nn.Dropout):
                    out_prev = out_prev * self.mask[l]
 
             if find_max_mem and max_mem_layer < len(self.features):
@@ -345,6 +352,7 @@ class VGG_SNN(nn.Module):
                 elif isinstance(self.classifier[l],nn.Dropout):
                     out_prev = out_prev * self.mask[prev+l]
 
+            # pdb.set_trace()
                     
             # Compute classification layer outputs
             if not find_max_mem : 

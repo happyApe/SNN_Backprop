@@ -1,4 +1,5 @@
 import os, sys
+import pdb
 import argparse
 import datetime
 import numpy as np
@@ -51,6 +52,126 @@ def train(epoch) :
     top1 = AverageMeter('Acc@1')
 
     if epoch in lr_interval : 
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = param_group['lr'] / lr_reduce
+            learning_rate = param_group['lr']
+
+    model.train()
+    # pdb.set_trace()
+
+    for batch_idx, (data,target) in enumerate(train_loader):
+        if torch.cuda.is_available() and args.gpu : 
+            data, target = data.cuda(), target.cuda()
+
+        optimizer.zero_grad()
+        output = model(data) 
+
+        loss = F.cross_entropy(output,target)
+        loss.backward()
+        optimizer.step()
+        pred = output.max(1,keepdim = True)[1]
+        correct = pred.eq(target.data.view_as(pred)).cpu().sum()
+
+        losses.update(loss.item(),data.size(0))
+        top1.update(correct.item()/data.size(0), data.size(0))
+
+        print("Epoch : {}, batch : {}, train_loss : {:.4f}, train_acc : {:.4f}\n".format(epoch, batch_idx + 1, losses.avg, top1.avg))
+        if (batch_idx + 1) % train_acc_batches == 0:
+            temp1 = []
+            for value in model.module.threshold.values():
+                temp1 = temp1 + [round(value.item(),2)]
+            f.write('\nEpoch : {}, batch : {}, train_loss : {:.4f}, train_acc : {:.4f}, threshold : {}, leak : {}, timesteps : {}'
+                    .format(epoch,
+                        batch_idx + 1, 
+                        losses.avg, 
+                        top1.avg,
+                        temp1, 
+                        model.module.leak.item(),
+                        model.module.timesteps
+                        )
+                    )
+
+    f.write('\nEpoch : {}, lr : {:.1e}, train_loss : {:.4f}, train_acc : {:.4f}'
+            .format(epoch, 
+                learning_rate, 
+                losses.avg,
+                top1.avg, 
+                )
+            )
+
+def test(epoch):
+    ''' Test function
+    '''
+
+    losses = AverageMeter('Loss')
+    top1 = AverageMeter('Acc@1')
+
+    with torch.no.grad():
+        model.eval()
+        global max_accuracy
+
+        for batch_idx, (data, target) in enumerate(test_loader):
+
+            if torch.cuda.is_available() and args.gpu:
+                data, target = data.cuda(), target.cuda()
+
+            ouptut = model(data)
+            loss = F.cross_entropy(output, target)
+            pred = output.max(1, keepdim = True)[1]
+            correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+
+            losses.update(loss.item(), data.size(0))
+            top1.update(correct.item()/data.size(0), data.size(0))
+
+            if test_acc_every_batch : 
+                f.write('\nAccuracy : {}/{}({:.4f})'
+                        .format(
+                            correct.item(),
+                            data.size(0),
+                            top1.avg
+                            )
+                        )
+
+        temp1 = []
+        for value in model.module.threshold.values():
+            temp1 = temp1 + [value.item()]
+
+        if epoch>5 and top1.avg < 0.15 : 
+            f.write('\nQuitting as the training is not progressing')
+            exit(0)
+
+        if top1.avg > max_accuracy : 
+            max_accuracy = top1.avg
+
+            state = {
+                    'accuracy' : max_accuracy, 
+                    'epoch' : epoch, 
+                    'state_dict' : model.state_dict(), 
+                    'optimizer' : optimizer.state_dict(),
+                    'thresholds' : temp1, 
+                    'timesteps' : timesteps,
+                    'leak' : leak,
+                    'activation' : activation
+            }
+            try : 
+                os.mkdir('./trained_model/snn/')
+            except OSError : 
+                pass
+            filename = './trained_model/snn' + identifier + '.pth'
+            torch.save(state,filename)
+
+        f.write('test_loss : {:.4f}, test_acc : {:.4f}, best : {:.4f} time : {}'
+                .format(
+                    losses.avg, 
+                    top1.avg, 
+                    max_accuracy, 
+                    datetime.timedelta(seconds = (datetime.datetime.now() - start_time).seconds)
+                    )
+            )
+
+
+
+
 
 
 
